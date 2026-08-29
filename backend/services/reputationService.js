@@ -7,13 +7,26 @@ const BADGE_THRESHOLDS = {
 
 import prisma from '../lib/prisma.js';
 
+// ── Null/undefined handling ──────────────────────────────────────────────────
+// Standardized on `== null` (matches both null and undefined in one check)
+// for required-identifier validation, and `??` for defaulting values. Avoids
+// mixing that pattern with plain truthy checks (`!x`), which also reject
+// legitimate falsy-but-defined values like an empty string or 0.
+
+const assertRequired = (value, name) => {
+  if (value == null) {
+    throw new Error(`${name} is required`);
+  }
+};
+
 // ── Read Operations ──────────────────────────────────────────────────────────
 
 const getReputationByAddress = async (address) => {
+  if (address == null) return null;
   const record = await prisma.reputationRecord.findUnique({
     where: { address },
   });
-  return record || null;
+  return record ?? null;
 };
 
 const getBadge = (score) => {
@@ -64,6 +77,9 @@ const getPercentileRank = async (address) => {
  * @param {string} tenantId - Tenant context
  */
 const recordEscrowCompletion = async (address, role, escrowId, tenantId) => {
+  assertRequired(address, 'address');
+  assertRequired(escrowId, 'escrowId');
+
   // Score delta: +10 for freelancer, +5 for client
   const scoreDelta = role === 'freelancer' ? 10 : 5;
 
@@ -106,6 +122,9 @@ const recordEscrowCompletion = async (address, role, escrowId, tenantId) => {
  * @param {string} tenantId - Tenant context
  */
 const recordDisputeOutcome = async (address, won, escrowId, tenantId) => {
+  assertRequired(address, 'address');
+  assertRequired(escrowId, 'escrowId');
+
   const scoreDelta = won ? 15 : -5;
   const eventType = won ? 'DISPUTE_WON' : 'DISPUTE_LOST';
 
@@ -164,6 +183,8 @@ const recordDisputeOutcome = async (address, won, escrowId, tenantId) => {
  * @param {string} tenantId - Tenant context
  */
 const recordEscrowCancellation = async (address, wasAtFault, escrowId, tenantId) => {
+  assertRequired(address, 'address');
+  assertRequired(escrowId, 'escrowId');
   if (!wasAtFault) return;
 
   const scoreDelta = -8;
@@ -211,7 +232,7 @@ const recordEscrowCancellation = async (address, wasAtFault, escrowId, tenantId)
  * @param {string} tenantId - Tenant context (optional, all if not specified)
  */
 const recalculateFromEventHistory = async (tenantId) => {
-  const where = tenantId ? { tenantId } : {};
+  const where = tenantId == null ? {} : { tenantId };
 
   // Get all unique addresses with events
   const addresses = await prisma.reputationEvent.findMany({

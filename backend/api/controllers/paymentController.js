@@ -82,7 +82,24 @@ const listByAddress = async (req, res) => {
         .json({ error: 'Forbidden: cannot access another wallet payment history.' });
     }
     const payments = await paymentService.getByAddress(address);
-    res.json(payments);
+
+    // Empty state (issue #288) — an empty array alone gives the caller no
+    // way to tell "no payments yet" apart from a still-loading or broken
+    // request, so surface an explicit flag plus copy the frontend can show
+    // as-is, matching the wording style of the existing EmptyState component
+    // (frontend/components/ui/EmptyState.jsx: title + actionable description).
+    if (payments.length === 0) {
+      return res.json({
+        payments,
+        isEmpty: true,
+        emptyState: {
+          title: 'No payments yet',
+          description: 'Fund an escrow to see your payment history here.',
+        },
+      });
+    }
+
+    res.json({ payments, isEmpty: false });
   } catch (err) {
     logControllerError('payment.listByAddress', err, req);
     res.status(500).json({ error: err.message });

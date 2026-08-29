@@ -21,7 +21,7 @@ const logControllerError = (ctx, err, req) =>
 
 const STELLAR_ADDRESS_RE = /^G[A-Z2-7]{55}$/;
 
-const getReputation = async (req, res) => {
+const getReputation = async (req, res, next) => {
   try {
     const { address } = req.params;
     if (!STELLAR_ADDRESS_RE.test(address)) {
@@ -41,13 +41,13 @@ const getReputation = async (req, res) => {
     );
   } catch (err) {
     logControllerError('reputation.getReputation', err, req);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
 const LEADERBOARD_MAX_LIMIT = 50;
 
-const getLeaderboard = async (req, res) => {
+const getLeaderboard = async (req, res, next) => {
   try {
     const { page, skip } = parsePagination(req.query);
     const limit = Math.min(parsePagination(req.query).limit, LEADERBOARD_MAX_LIMIT);
@@ -72,7 +72,8 @@ const getLeaderboard = async (req, res) => {
     res.set('X-Data-Source', source);
     res.json(buildPaginatedResponse(data, { total, page, limit }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logControllerError('reputation.getLeaderboard', err, req);
+    next(err);
   }
 };
 
@@ -82,7 +83,7 @@ const getLeaderboard = async (req, res) => {
  * Address autocomplete and full-text search.
  * Returns results in <50ms from ES; falls back to Prisma on ES outage.
  */
-const search = async (req, res) => {
+const search = async (req, res, next) => {
   try {
     const q = (req.query.q ?? '').trim();
     const limit = Math.min(parseInt(req.query.limit ?? '10', 10), 50);
@@ -98,8 +99,8 @@ const search = async (req, res) => {
     res.set('X-Data-Source', source);
     res.json({ data: hits, total, limit, from });
   } catch (err) {
-    logControllerError('reputation.getLeaderboard', err, req);
-    res.status(500).json({ error: err.message });
+    logControllerError('reputation.search', err, req);
+    next(err);
   }
 };
 
@@ -109,7 +110,7 @@ const search = async (req, res) => {
  * Admin-only endpoint to recompute all reputation scores from event history.
  * Used for corrections after bugs or audits.
  */
-const recalculate = async (req, res) => {
+const recalculate = async (req, res, next) => {
   try {
     const user = req.user || req.auth || {};
     const userRole = user.role || 'user';
@@ -129,7 +130,7 @@ const recalculate = async (req, res) => {
     });
   } catch (err) {
     logControllerError('reputation.recalculate', err, req);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
