@@ -9,6 +9,7 @@
 
 import prisma from '../lib/prisma.js';
 import { getCurrentTenantId, withTenantScopeBypassed } from '../lib/tenantContext.js';
+import { getXlmUsdPrice } from './priceOracleService.js';
 
 let stripeClient;
 async function getStripeClient() {
@@ -16,22 +17,6 @@ async function getStripeClient() {
   const { default: Stripe } = await import('stripe');
   stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
   return stripeClient;
-}
-
-const STELLAR_HORIZON = process.env.STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org';
-
-/**
- * Fetch the current XLM/USD price from Stellar DEX via Horizon.
- * Returns price as a float (USD per 1 XLM).
- */
-async function getXlmUsdPrice() {
-  const res = await fetch(
-    `${STELLAR_HORIZON}/order_book?selling_asset_type=native&buying_asset_type=credit_alphanum4&buying_asset_code=USDC&buying_asset_issuer=${process.env.USDC_ISSUER}&limit=1`,
-  );
-  if (!res.ok) throw new Error('Failed to fetch XLM price');
-  const { bids } = await res.json();
-  if (!bids?.length) throw new Error('No bids in order book');
-  return parseFloat(bids[0].price);
 }
 
 /**

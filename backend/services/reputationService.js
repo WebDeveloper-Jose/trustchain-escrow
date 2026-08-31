@@ -13,7 +13,7 @@ const getReputationByAddress = async (address) => {
   const record = await prisma.reputationRecord.findUnique({
     where: { address },
   });
-  return record || null;
+  return record ?? null;
 };
 
 const getBadge = (score) => {
@@ -211,7 +211,10 @@ const recordEscrowCancellation = async (address, wasAtFault, escrowId, tenantId)
  * @param {string} tenantId - Tenant context (optional, all if not specified)
  */
 const recalculateFromEventHistory = async (tenantId) => {
-  const where = tenantId ? { tenantId } : {};
+  // Nullish check, not truthy: a tenantId of '' or 0 is still a real filter
+  // value, not "no tenant" — a truthy check here would silently drop the
+  // tenant scope and recalculate across every tenant's records.
+  const where = tenantId != null ? { tenantId } : {};
 
   // Get all unique addresses with events
   const addresses = await prisma.reputationEvent.findMany({
